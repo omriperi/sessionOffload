@@ -145,6 +145,69 @@ rpc getClosedSessions(sessionRequestArgs) returns (stream sessionResponse) {}
 
 }
 
+
+service ipsecSessionTable {
+  //
+  // Add a IPSecc tunnel in Transport Mode
+  rpc addIpsecTunnel(stream ipsecTunnelCreate) returns (addSessionResponse) {}
+  //
+  // Obtains the session 
+  rpc getSession(sessionId) returns (sessionResponse) {} // Contains only the SPI of the session
+  //
+  // Delete a session
+  rpc deleteSession(sessionId) returns (sessionResponse) {} // Contain only the SPI of the sessioj
+  //
+  // Stream back all current sessions
+  //rpc getAllSessions(statisticsRequestArgs) returns (stream sessionResponse) {}
+  rpc getAllSessions(sessionRequestArgs) returns (sessionResponses) {} // Contains the page size / etc
+  
+  
+  }
+
+
+enum ENC_TYPE{
+  _AES = 0;
+  _DES = 1;
+}
+
+enum AUTH_TYPE{
+  _SHA256 = 0;
+}
+
+enum DIRECTION{
+  _IN = 0;
+  _OUT = 1;
+}
+
+message ipsecTunnelModeParams {
+  IP_VERSION ipVersion = 0;
+  uint32 sourceIp = 1;
+  uint32 destinationIp = 2;
+  bytes sourceIpv6 = 3;
+  bytes destinationIpv6 = 4;
+}
+
+
+message ipsecTunnelParams {
+  bytes authenticationKey = 0;
+  bytes encryptionKey = 1;
+  DIRECTION sessionDirection = 2;
+  uint32 spi=3;
+}
+
+message ipsecTunnelCreate {
+  IP_VERSION ipVersion = 0;
+  uint32 sourceIp = 1;
+  uint32 ipPrefix = 2;
+  bytes sourceIpV6 = 3;
+  bytes destinationIpV6 =4;
+  ENC_TYPE encryptionType = 5;
+  AUTH_TYPE authType = 6;
+  optional ipsecTunnelParams tunnel_params = 7;
+  optional ipsecTunnelModeParams tunnel_mode = 8;
+}
+
+
 // should the Application assign the sessionID on AddSession and avoid conflicts
 // or have the applications have a mechanism to avoid duplicate sessionIDs across 
 // applications since there will be many applications instances to 1 switch
@@ -191,6 +254,8 @@ message sessionResponses {
   repeated sessionResponse sessionInfo = 1;
   uint64 nextkey =2;
 }
+
+
 //
 // In v1apha4 the errorstatus was added to act as a bitmask
 // of errors for each of the sesssions sent in a stream (max 64).
@@ -214,6 +279,8 @@ message sessionResponse{
   google.protobuf.Timestamp startTime = 9;
   google.protobuf.Timestamp endTime = 10;
 }
+
+
 
 message sessionRequestArgs{
   //  pageSize = 0 will turn off paging
