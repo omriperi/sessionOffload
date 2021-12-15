@@ -146,23 +146,26 @@ rpc getClosedSessions(sessionRequestArgs) returns (stream sessionResponse) {}
 }
 
 
-service ipsecSessionTable {
-  //
-  // Add a IPSecc tunnel in Transport Mode
-  rpc addIpsecTunnel(stream ipsecTunnelCreate) returns (addSessionResponse) {}
-  //
-  // Obtains the session 
-  rpc getSession(sessionId) returns (sessionResponse) {} // Contains only the SPI of the session
-  //
-  // Delete a session
-  rpc deleteSession(sessionId) returns (sessionResponse) {} // Contain only the SPI of the sessioj
-  //
-  // Stream back all current sessions
-  //rpc getAllSessions(statisticsRequestArgs) returns (stream sessionResponse) {}
-  rpc getAllSessions(sessionRequestArgs) returns (sessionResponses) {} // Contains the page size / etc
-  
-  
-  }
+
+service ipTunnelTable {
+// Creation of IP Tunnel
+// This API shuold be generic and allow creations of many IP tunnels
+rpc createIpTunnel(stream ipTunnel) returns (addSessionResponse) {}
+
+// Updating the tunnel,
+// Only the tunnelId should be constant, all other parameters can be changed in the tunnel
+rpc updateIpTunnel(stream ipTunnel) returns (addSessionResponse) {}
+
+// Getting a tunnel by it's ID 
+rpc getIpTunnel(tunnelId) returns (ipTunnelResponse) {} 
+
+// Deleting a session by it's ID
+rpc deleteIpTunnel(tunnelId) returns (ipTunnelResponses) {} 
+
+// Getting all the ipTunnels currently configured
+rpc getAllIpTunnels(sessionRequestArgs) returns (ipTunnelResponses) {} // Contains the page size / etc
+
+} 
 
 
 enum ENC_TYPE{
@@ -179,34 +182,76 @@ enum DIRECTION{
   _OUT = 1;
 }
 
-message ipsecTunnelModeParams {
-  IP_VERSION ipVersion = 0;
-  uint32 sourceIp = 1;
-  uint32 destinationIp = 2;
-  bytes sourceIpv6 = 3;
-  bytes destinationIpv6 = 4;
+
+message ipTunnel { // Can be VXLan / GRE / NVGRE / IPSec (SPI) / mGRE 
+
+  // Unique ID for the tunnel
+  uint64 tunnelId = 1;
+  
+  // One of the match messages should present
+  oneof match {
+    IPV4Match ipv4Match = 2;
+    IPV6Match ipv6Match = 3;
+  }
+  oneof tunnel {
+      IPSecTunnel ipsecTunnel = 4;
+      // IPSecSession ipsecSession = 5;
+  };
 }
 
-
-message ipsecTunnelParams {
-  bytes authenticationKey = 0;
-  bytes encryptionKey = 1;
-  DIRECTION sessionDirection = 2;
-  uint32 spi=3;
+message IPV4Pair {  
+  fixed32 sourceIp = 1;
+  fixed32 destinationIp = 2;
 }
 
-message ipsecTunnelCreate {
-  IP_VERSION ipVersion = 0;
-  uint32 sourceIp = 1;
-  uint32 ipPrefix = 2;
-  bytes sourceIpV6 = 3;
-  bytes destinationIpV6 =4;
-  ENC_TYPE encryptionType = 5;
-  AUTH_TYPE authType = 6;
-  optional ipsecTunnelParams tunnel_params = 7;
-  optional ipsecTunnelModeParams tunnel_mode = 8;
+message IPV6Pair {
+  bytes sourceIp = 1;
+  bytes destinationIp = 2; 
 }
 
+message IPV4Match {
+  fixed32 sourceIp = 1;
+  uint32 sourceIpPrefix = 2;
+  fixed32 destinationIp = 3;
+  uint32 destinationIpPrefix = 4;
+}
+
+message IPV6Match {
+  bytes sourceIp = 1;
+  uint32 sourceIpPrefix = 2;
+  bytes destinationIp = 3;
+  uint32 destinationIpPrefix = 4;
+}
+
+enum IPSecTunnelType {
+  TRANSPORT = 0;
+  TUNNEL = 1;
+  TRANSPORT_NAT_TRAVERSAL = 2; 
+  TUNNEL_NAT_TRAVERSAL = 3;
+}
+
+message IPSecTunnel {
+  IPSecTunnelType tunnelType = 1;
+  DIRECTION tunnelDirection = 2;
+  ENC_TYPE encryptionType = 3;
+  bytes authenticationKey = 4;
+  AUTH_TYPE authenticationType = 5;
+  bytes encryptionKey = 6;
+  // SPI should be unique for every session
+  uint32 SPI = 7;
+  // In case the ipsec tunnel is with tunnel mode,
+  // one of the messages below should present
+  oneof tunnelIps {
+    IPV4Pair ipv4_tunnel = 8;
+    IPV6Pair ipv6_tunnel = 9;
+  }
+}
+
+// message IPSecSession {
+//   IPSecTunnelType tunnelType = 1;
+//   bytes authenticationKey = 2;
+//   bytes encryptionKey = 3  ;
+// }
 
 // should the Application assign the sessionID on AddSession and avoid conflicts
 // or have the applications have a mechanism to avoid duplicate sessionIDs across 
@@ -214,6 +259,11 @@ message ipsecTunnelCreate {
 message sessionId{
   uint64 sessionId = 1;
 }
+
+message tunnelId{
+  uint64 tunnelId = 1;
+}
+
 
 // MIRROR and SNOOP require an actionNextHop
 // DROP and FORWARD do not have an actionNextHop
@@ -267,8 +317,40 @@ message addSessionResponse{
   repeated sessionResponseError responseError = 4;
 }
 
+message ipSecTunnelResponse {
+  uint64  inPackets = 1;
+  uint64  outPackets = 2;
+  uint64  inBytes  = 3;
+  uint64  outBytes = 4;
+  uint64  inPacketsDrops = 5;
+  uint64  outPacketsDrops = 6;
+  uint64  inBytesDrops  = 7;
+  uint64  outBytesDrops = 8;
+
+}
+
+message ipTunnelResponses {
+  repeated ipTunnelResponse responses = 1;
+}
+
+message ipTunnelResponse {
+  uint64 tunnelId = 1;
+  
+  oneof match {
+    IPV4Match ipv4Match = 2;
+    IPV6Match ipv6Match = 3;
+  }
+
+  REQUEST_STATUS requestStatus = 4;
+
+  oneof response {
+    ipSecTunnelResponse ipSecTunnelResponse = 5;
+  }
+
+}
+
 message sessionResponse{
-  uint64  sessionId = 1 ;
+  uint64  tunnelId = 1 ;
   uint64  inPackets = 2 ;
   uint64  outPackets = 3 ;
   uint64  inBytes  = 4 ;
