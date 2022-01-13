@@ -38,11 +38,7 @@ Problem with having several tunnels with the same mathcing criteria is we don't 
 
 #### Option 1 - Not enabling two tunnels with the same match 
 
-Deciding upfront the order of the tunnel handling (e.g. GRE is before IPSec / etc)
-
-#### Option 1.1 - Not enabling two tunnels with the same match (IPSec at the end) - Linux Like
-
-Not allowing multiple tunnels with same matching criteria (e.g. On Linux we can't configure 
+Not enabling the same match, and doing every encapsulation one after another
 
 #### Option 2 - Providing tunnel with an action
 
@@ -50,6 +46,10 @@ Having multiple tunnels with actions attached to them (e.g. OpenFlow)
 
 i.e. On the offloading of GRE Tunnel it'll be decided that the next action will be IPSec
 
+#### Option 3 - Have a predefined order of actions
+
+We'll have a pre-defined tunnel order, and this way it will be 
+determined how the pipe is going to be implemented
 
 
 ### Outgoing tunnel chaining
