@@ -148,6 +148,9 @@ rpc getClosedSessions(sessionRequestArgs) returns (stream sessionResponse) {}
 
 
 service ipTunnelTable {
+// Get which capabilities are available while using the  
+rpc Capabilities(CapabilityRequest) returns (CapabilityResponse);
+
 // Creation of IP Tunnel
 // This API shuold be generic and allow creations of many IP tunnels
 rpc createIpTunnel(stream ipTunnel) returns (ipTunnelResponse) {}
@@ -167,6 +170,11 @@ rpc getAllIpTunnels(sessionRequestArgs) returns (ipTunnelResponses) {} // Contai
 
 } 
 
+message CapabilityRequest {
+
+}
+
+
 
 enum ENC_TYPE{
   _AES = 0;
@@ -177,35 +185,70 @@ enum AUTH_TYPE{
   _SHA256 = 0;
 }
 
+
+message CapabilityResponse {
+  // We'll have capability for matching, and for every tunnel
+
+  message MatchCapabilities {
+    bool ingressInterfaceMatching = 1; // Is interface can be matched for encapsulation / decapsulation
+    bool vxlanMatching = 2; // Match with VXLAN VNI
+    bool geneveMatching = 3; // Match with geneve can happen
+    bool vrfMatching = 4; // Is vrf matching possible
+  }
+
+  MatchCapabilities matchCapabilities = 1;
+  
+  message IPSecCapabilities {
+    repeated IPSecTunnelType tunnelTypeSupported = 1;
+    repeated AUTH_TYPE authSupported = 2;
+    repeated ENC_TYPE encryptionSupported = 3;
+  }
+  
+  IPSecCapabilities ipsecCapabilities = 2;
+  
+}
+
+
 enum DIRECTION{
-  _IN = 0;
-  _OUT = 1;
+  _IN = 0; // Ingress Packets
+  _OUT = 1; // Egress Packets
 }
 
 message MatchCriteria {
-    // Tags
-    repeated uint16 vlan = 1; // Optional field, which VLAN will be matched for creating the tunnel (can be several)
     // In case it's not present, untagged traffic will be matched
-    string interface = 2; // Optional field, in which interface this tunnel will be encapsulated
-    // In this case VXLAN packet received will be encapsulated, only with this particular VNI
-    uint32 vxlan_vni = 3;
-    // In this case Geneve packet received will be matched
-    uint32 geneve_vni = 4;
+    string ingress_interface = 1; // Optional field, in which interface this tunnel will be encapsulated
+
+    oneof tunnel {
+      // In this case VXLAN packet received will be encapsulated, only with this particular VNI
+      uint32 vxlan_vni = 3;
+      // In this case Geneve packet received will be matched
+      uint32 geneve_vni = 4;
+    }
   
     // One of the match messages should present
     oneof ip_match {
       IPV4Match ipv4Match = 4;
       IPV6Match ipv6Match = 5;
     }
+
+    string vrf = 6;
 }
 
-message ipTunnel { // Can be VXLan / GRE / NVGRE / IPSec (SPI) / mGRE 
+message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
 
-  MatchCriteria match_criteria = 1;
+  MatchCriteria match_criteria = 1; // When hitting this match, 
+  // the tunnel encpasulation will occur 
 
-  oneof tunnel {
-      IPSecTunnel ipsecTunnel = 2;
+  // Priority of the tunnel compared to other tunnels with the same match
+  // Tunnel with higher priority will be the chosen one
+  uint64 priority = 3;  
+
+  oneof tunnel { 
+      IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
   };
+
+
+
 }
 
 message IPV4Pair {  
@@ -343,13 +386,19 @@ message ipTunnelResponses {
 }
 
 message ipTunnelResponse {
+  // Tunnel ID assigned to this tunnel
   uint64 tunnelId = 1;
-  
-  MatchCriteria match_criteria = 2;
 
-  ADD_SESSION_STATUS requestStatus = 3;
+  // Information regards the ipTunnel (including match, tunnel information)
+  ipTunnel ipTunnel = 2; 
+
+  // The status of adding the request / response
+  ADD_SESSION_STATUS requestStatus = 3; 
+
+  // Error code describing the error with the request
   uint64 errorStatus = 4; 
 
+  // Response according to the offloaded tunnel
   oneof response {
     ipSecTunnelResponse ipSecTunnelResponse = 5;
   }
