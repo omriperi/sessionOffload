@@ -217,12 +217,28 @@ enum DIRECTION{
 message MatchCriteria {
     // In case it's not present, untagged traffic will be matched
     string ingress_interface = 1; // Optional field, in which interface this tunnel will be encapsulated
+    
+    message IPSecMatch {
+      uint32 spi = 0;
+    } 
+    
+    message GeneveMatch {
+      uint32 vni = 0;
+      string source_mac = 1;
+      string destination_mac = 2;
+   }
+   
+   message VXLanMatch {
+      uint32 vni = 0;
+      string source_mac = 1;
+      string destination_mac = 2;
+   }
 
+    // Type of tunnel 
     oneof tunnel {
-      // In this case VXLAN packet received will be encapsulated, only with this particular VNI
-      uint32 vxlan_vni = 3;
-      // In this case Geneve packet received will be matched
-      uint32 geneve_vni = 4;
+      IPSecMatch ipsecMatch = 0;
+      GeneveMatch geneveMatch = 1;
+      VXLanMatch vxlanMatch = 2;
     }
   
     // One of the match messages should present
@@ -230,18 +246,15 @@ message MatchCriteria {
       IPV4Match ipv4Match = 4;
       IPV6Match ipv6Match = 5;
     }
-
+    
     string vrf = 6;
 }
 
 message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
 
   MatchCriteria match_criteria = 1; // When hitting this match, 
-  // the tunnel encpasulation will occur 
 
-  // Priority of the tunnel compared to other tunnels with the same match
-  // Tunnel with higher priority will be the chosen one
-  uint64 priority = 3;  
+
 
   oneof tunnel { 
       IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
