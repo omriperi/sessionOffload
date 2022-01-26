@@ -8,35 +8,54 @@ A service called `ipTunnelTable` will be introduced, for CRUD operations on the 
 
 Through this service it will be possible to offload several kinds of IP Tunnels, where the common configuation between them is the `match` criteria, which indicates which IP will be used for tunnel creation / termination.
 
-## Matching Criteria
+## Packet Tunneling 
 
-Since IP tunnels are L3 tunnels, the only matching criteria will be source subnet & destination subnets.
+With openOffload, user can request to match packet encapsulate it on a tunnel, this will be done by providing matching criteria + tunnel properties.
 
-```
-message MatchCriteria {
-    // In case it's not present, untagged traffic will be matched
-    string ingress_interface = 1; // Optional field, in which interface this tunnel will be encapsulated
+While packet tunnel offloaded, tow main entities are offloaded: Matching criteria & Packet Tunnel.
 
-    // In this case VXLAN packet received will be encapsulated, only with this particular VNI
-    uint32 vxlan_vni = 3;
-    // In this case Geneve packet received will be matched
-    uint32 geneve_vni = 4;
-  
-    // One of the match messages should present
-    oneof ip_match {
-      IPV4Match ipv4Match = 4;
-      IPV6Match ipv6Match = 5;
-    }
-}
-```
+#### Matching the Packet
 
-For example:
+Matching of packet can be based on several criteria:
 
-![Matching](images/matching.png)
+- Ingress Interface
+- IP's
+- VRF
+- Encapsulating Protocol (e.g. VXLan, IPSec, etc)
+
+*For a complete list of supported protocols refer to the protobuf file*
+
+#### Packet Encapsulation / Decapsulation
+
+After packet matched, it should be encapsulated / decapsulated according to the offloaded tunnel.
+
+The tunnels are Layer-3 tunnels, and currently only includes IPSec Offloading.
+
+#### Example - Offloading IPsec Tunnel
+
+In the following example, IPSec tunnel is offloaded into the device. 
+
+IPSec is a special example where two offloads should be performed to the device, one for egress and one for ingress - since there's different SA (Security Association) per direction.
+
+#### Egress Flow
+
+For egress flow, the following example can is offloaded into the device
+
+![Matching](images/ipsec_transport_egress.png)
+
+#### Ingress Flow
+
+For egress flow, the following example can is offloaded into the device
+
+![Matching](images/ipsec_transport_ingress.png)
 
 ## Tunnel Chaining
 
 This section will provide information regards tunenl chaining, or "IP in IP". Where packet should be encapsulated / decapsulated from several tunnels.
+
+
+
+### Ingress Tunnel Chaining
 
 While the offloading device will handle packets, it will inspect the traffic on every "cycle" and will determine if any action should happen on the packet.
 
@@ -47,14 +66,9 @@ in the decapsulation part, it will look in the protocol of the packet (e.g. IPSe
 
 For example, we can provide two tunnels withis parameters:
 
-<u>IPSec Transport Mode:</u>
 
-```
-Source IP: 10.0.0.2/24
-Destination IP: 11.1.1.1/24 
-Tunnnel Source Ip: 6.6.6.6
-Tunnel Destination Ip: 7.7.7.7
-```
+
+
 
 <u>GRE Tunnel:</u>
 
@@ -75,7 +89,9 @@ While getting "gre" packet, the GRE will be first (decapsulation) and IPSec will
 
 
 
-### Tunnel chaining with same match
+### Egress Tunnel Chaining
+
+### Tunnel chaining weith same match
 
 The question arrise is, what will happen in a case where we're having tunnel with the same match?
 
@@ -127,7 +143,7 @@ Let's have a look where the IPSec tunnel priority is higher than the GRE:
 
 Let's look on the following case
 
-<u>IPSec Transport Mode:</u>
+<u>IPSec Tunnel Mode:</u>
 
 ```
 Source IP: 10.0.0.0/24

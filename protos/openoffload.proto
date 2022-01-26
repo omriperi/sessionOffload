@@ -208,6 +208,13 @@ message CapabilityResponse {
   
 }
 
+enum ACTION {
+  // In this action packet will be forwarded right away
+  FORWARD = 0;
+  // In this action packet will continue processing, to other tunnel
+  PROCESS = 1;
+}
+
 
 enum DIRECTION{
   _IN = 0; // Ingress Packets
@@ -217,6 +224,13 @@ enum DIRECTION{
 message MatchCriteria {
     // In case it's not present, untagged traffic will be matched
     string ingress_interface = 1; // Optional field, in which interface this tunnel will be encapsulated
+
+    oneof ip_match {
+      IPV4Match ipv4Match = 2;
+      IPV6Match ipv6Match = 3;
+    }
+
+    string vrf = 4;
     
     message IPSecMatch {
       uint32 spi = 0;
@@ -224,44 +238,39 @@ message MatchCriteria {
     
     message GeneveMatch {
       uint32 vni = 0;
-      string source_mac = 1;
-      string destination_mac = 2;
+      MacPair macMatch = 1;
    }
    
    message VXLanMatch {
       uint32 vni = 0;
-      string source_mac = 1;
-      string destination_mac = 2;
+      MacPair mac_match = 1;
    }
 
-    // Type of tunnel 
+    // Tunnel Matching
     oneof tunnel {
-      IPSecMatch ipsecMatch = 0;
-      GeneveMatch geneveMatch = 1;
-      VXLanMatch vxlanMatch = 2;
+      IPSecMatch ipsecMatch = 5;
+      GeneveMatch geneveMatch = 6;
+      VXLanMatch vxlanMatch = 7;
     }
-  
-    // One of the match messages should present
-    oneof ip_match {
-      IPV4Match ipv4Match = 4;
-      IPV6Match ipv6Match = 5;
-    }
-    
-    string vrf = 6;
+
 }
 
 message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
 
   MatchCriteria match_criteria = 1; // When hitting this match, 
 
-
+  Action action = 2; // What we'll do after matching the packet, shuold we 
+                     // keep process it or we'll just forward it 
 
   oneof tunnel { 
       IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
   };
 
+}
 
-
+message MacPair {
+  bytes sourceMac = 1;
+  bytes destinationMac = 2;
 }
 
 message IPV4Pair {  
