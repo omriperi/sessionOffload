@@ -1,0 +1,97 @@
+<mxfile host="65bd71144e">
+    <diagram id="V7hC7Ia_DJyM14xFZ34Q" name="Page-1">
+        <mxGraphModel dx="2810" dy="2109" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="2" value="10.0.0.2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="363" y="630" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="4" value="Source MAC" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="630" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="5" value="Destination MAC" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="191" y="630" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="6" value="11.1.1.2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="513" y="630" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="15" value="L4 Header" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="663" y="630" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="16" value="" style="endArrow=classic;html=1;fontSize=26;entryX=1;entryY=0;entryDx=0;entryDy=0;exitX=1;exitY=1;exitDx=0;exitDy=0;" parent="1" source="2" target="17" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="320.5" y="-405.0000000000001" as="sourcePoint"/>
+                        <mxPoint x="320" y="-125" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="17" value="10.0.0.2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="363" y="453" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="18" value="Source MAC" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="20" y="453" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="19" value="Destination MAC" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="191" y="453" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="20" value="11.1.1.2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="513" y="453" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="22" value="ESP Header&lt;br&gt;(SPI 0x40302010)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="663" y="453" width="157" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="23" value="Payload" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="813" y="630" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="27" value="&lt;span style=&quot;font-size: 15px&quot;&gt;IPSec Decryption (Tunnel ID 2)&lt;br&gt;&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=26;" parent="1" vertex="1">
+                    <mxGeometry x="255" y="560" width="220" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="29" value="L4 Header&lt;br&gt;(Encrypted)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="820" y="453" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="30" value="Payload&lt;br&gt;(Encrypted)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="970" y="453" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="35" value="" style="endArrow=classic;html=1;fontSize=26;exitX=0.568;exitY=1.007;exitDx=0;exitDy=0;entryX=0;entryY=0;entryDx=0;entryDy=0;exitPerimeter=0;" parent="1" source="45" target="20" edge="1">
+                    <mxGeometry width="50" height="50" relative="1" as="geometry">
+                        <mxPoint x="322" y="-55" as="sourcePoint"/>
+                        <mxPoint x="520" y="480" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="36" value="10.0.0.2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="581" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="37" value="Source MAC" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="-210" y="225" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="38" value="Destination MAC" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="-39" y="225" width="170" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="39" value="11.1.1.2" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="731" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="40" value="ESP Header&lt;br&gt;(SPI 0x40302010)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="881" y="225" width="157" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="41" value="L4 Header&lt;br&gt;(Encrypted)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1038" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="42" value="Payload&lt;br&gt;(Encrypted)" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1188" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="43" value="8.8.8.8" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="131" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="44" value="9.9.9.9" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="281" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="45" value="GRE Header&lt;br&gt;Key: 100" style="rounded=0;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="431" y="225" width="150" height="60" as="geometry"/>
+                </mxCell>
+                <mxCell id="47" value="&lt;span style=&quot;font-size: 15px&quot;&gt;GRE Decapsulation (Tunne lD 3)&lt;br&gt;&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;fontSize=26;" parent="1" vertex="1">
+                    <mxGeometry x="250" y="370" width="230" height="40" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

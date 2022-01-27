@@ -6,15 +6,29 @@ With openOffload it will be possible to offload also IP Tunnels into the underly
 
 A service called `ipTunnelTable` will be introduced, for CRUD operations on the offloaded sessions.
 
-Through this service it will be possible to offload several kinds of IP Tunnels, where the common configuation between them is the `match` criteria, which indicates which IP will be used for tunnel creation / termination.
+Through this service it will be possible to offload several kinds of IP Tunnels, where the common configuation between them is the `match` criteria, which indicates which packets will be matched and go to a tunnel.
 
 ## Packet Tunneling 
 
 With openOffload, user can request to match packet encapsulate it on a tunnel, this will be done by providing matching criteria + tunnel properties.
 
-While packet tunnel offloaded, tow main entities are offloaded: Matching criteria & Packet Tunnel.
+```
+message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
 
-#### Matching the Packet
+  MatchCriteria match_criteria = 1; // When hitting this match, 
+
+  Action action = 2; // What we'll do after matching the packet, shuold we 
+                     // keep process it or we'll just forward it 
+  oneof tunnel { 
+      IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
+  };
+
+}
+```
+
+*1. ipTunnel message is part of the ip tunneling service*
+
+#### Packet Matching
 
 Matching of packet can be based on several criteria:
 
@@ -23,7 +37,32 @@ Matching of packet can be based on several criteria:
 - VRF
 - Encapsulating Protocol (e.g. VXLan, IPSec, etc)
 
-*For a complete list of supported protocols refer to the protobuf file*
+Matching of the packet is **exact**, meaning that in order to packet to be tunneled, it should be exactly matched. 
+
+For example, if the following message will be entered to the device:
+
+![Matching](images/tunnelOffload/vxlanPacket.png)
+
+If a tunnel will be offloaded with following match criteria:
+
+```
+Match:
+Source Subnet: 1.2.3.0/24
+Destiantion Subnet: 5.5.5.0/24
+```
+
+The packet will **not be matched**, since the matching criteria is not including the packet VNI.
+
+Buf if the match criteria will be this one:
+
+```
+Match:
+Source Subnet: 1.2.3.0/24
+Destiantion Subnet: 5.5.5.0/24
+VXLAN VNI: 466
+```
+
+The packet **will be matched**, since matching criteira indicating that the packet is VXLan packet, with specific VNI (466) that's matched in the packet
 
 #### Packet Encapsulation / Decapsulation
 
@@ -37,134 +76,120 @@ In the following example, IPSec tunnel is offloaded into the device.
 
 IPSec is a special example where two offloads should be performed to the device, one for egress and one for ingress - since there's different SA (Security Association) per direction.
 
-#### Egress Flow
+**Tunnel Creation**
 
 For egress flow, the following example can is offloaded into the device
 
-![Matching](images/ipsec_transport_egress.png)
+![Matching](images/tunnelOffload/ipsec_transport_egress.png)
 
-#### Ingress Flow
+**Tunnel Termination**
 
 For egress flow, the following example can is offloaded into the device
 
-![Matching](images/ipsec_transport_ingress.png)
+![Matching](images/tunnelOffload/ipsec_transport_ingress.png)
 
-## Tunnel Chaining
+#### Matching on tunnel parameters
+
+While tunnel is terminated, the match will be based on **both** the "Match Criteria" and the "Tunnel Parameters".
+
+For example, while offloading GRE with these attributes:
+
+```
+Match:
+Source Subnet: 10.0.0.0/24
+Destination Subnet: 11.1.1.0/24
+
+Action:
+IPSec Tunne Mode
+SPI: 0x10101010
+Type: Decryption
+Local IP: 7.7.7.7
+Remote IP: 6.6.6.6
+
+```
+
+Since this IPSec tunnel is decrypting the packet, and get the packet already encapsulated, the offload device shuold match on the outer IP.
+
+In this case, the device will match on outer IP source is "6.6.6.6", and destination is "7.7.7.7".
+
+Also, the offloaded device will check that the internal IP's (after decryption) are matching the match on the packet. 
+
+![Matching](images/tunnelOffload/ipsec_tunnel_mode.png)
+
+### Tunnel Chaining
 
 This section will provide information regards tunenl chaining, or "IP in IP". Where packet should be encapsulated / decapsulated from several tunnels.
 
+In general, tunnel chaining is available since the packet match is exact.
 
+After the first match of packet (that will yield to encapsulation), a lookup on packet will be happen again (with the new header introduced to it) - that can cause tunnel chaining.
 
-### Ingress Tunnel Chaining
+Assuming severeal tunnels offloaded, 
 
-While the offloading device will handle packets, it will inspect the traffic on every "cycle" and will determine if any action should happen on the packet.
-
-For the encapsulation part, it will look if the outer IP of the packet is check if any action can be applied to the device,
-in the decapsulation part, it will look in the protocol of the packet (e.g. IPSec / GRE) and check if any decapsulation can happen on the packet, according to the offloaded tunnels.
-
-
-
-For example, we can provide two tunnels withis parameters:
-
-
-
-
-
-<u>GRE Tunnel:</u>
+Refer to this example:
 
 ```
-Source IP: 6.6.6.6/24
-Destination IP: 7.7.7.0/24
+----
+Tunnel ID 1:
+----
+Match:
+Source Subnet: 10.0.0.0/24
+Destination Subnet: 11.1.1.0/24
+
+Action:
+IPSec Transport Mode
+SPI: 0x10203040
+Type: Encryption
+
+
+```
+
+```
+----
+Tunnel ID 2:
+----
+Match:
+Source Subnet: 11.1.1.0/24
+Destination Subnet: 10.0.0.0/24
+
+Action:
+IPSec Transport Mode
+SPI: 0x40302010
+Type: Decryption
+```
+
+```
+---
+Tunnel ID 3:
+---
+Match:
+Source Subnet: 10.0.0.0/24
+Destination Subne: 11.1.1.0/24
+IPsec Packet
+
+Action:
 GRE Local Ip: 8.8.8.8
 GRE Destination Ip: 9.9.9.9
+GRE Key: 100
 ```
 
-In this case, the chaining is self-explanatory.
+Note that IPSec is having two tunnels for covering both tunnel creation & termination, while GRE is having only one.
 
-While getting "raw" packet, the IPSec will be first (encryption) and GRE will be afterwards.
+This is because of the nature of IPSec SA's, which each SA have only one functionality (encryption / decryption).
 
-While getting "gre" packet, the GRE will be first (decapsulation) and IPSec will be afterwards.
+
+
+**Tunnel Creation Chaining**
+
+![Matching](images/tunnelOffload/tunnel_chaining_creation.png)
+
+
+
+**Tunnel Termination Chaining**
+
+![Matching](images/tunnelOffload/tunnel_chaining_termination.png)
 
 *Note that with this kind of selection, choosing between GRE-over-IPSec / IPSec-over-GRE is easy available*
-
-
-
-### Egress Tunnel Chaining
-
-### Tunnel chaining weith same match
-
-The question arrise is, what will happen in a case where we're having tunnel with the same match?
-
-Conside this option
-
-<u>IPSec Transport Mode:</u>
-
-```
-Source IP: 10.0.0.0/24
-Destination IP: 11.1.1.0/24 
-Tunnnel Source Ip: 6.6.6.6
-Tunnel Destination Ip: 7.7.7.7
-```
-
-<u>GRE Tunnel:</u>
-
-```
-Source IP: 10.0.0.2/24
-Destination IP: 11.1.1.1/24
-GRE Local Ip: 8.8.8.8
-GRE Destination Ip: 9.9.9.9
-```
-
-What will happen to the packet? Will it be GRE encapsulated / IPSec encapsultaed?
-
-For such cases, `priority` field introduced into the tunnel creation, the tunnel with the "highest" priority will be the chosen one.
-
-```
-message ipTunnel { 
-	.....
-	
-  uint64 priority = 3; // Priority of the tunnel
-                      
-	....
-}
-```
-
-In the case the priority of IPSec is higher, IPSec will be chosen, and vice versa.
-
-**Note that in a case where only one tunnel will be used** since after the first tunnel is matched the packet is altered, and not matching the second tunnel anymore.
-
-Let's have a look where the IPSec tunnel priority is higher than the GRE:
-
-![Matching](images/two_tunnels_same_subnet_no_match.png)
-
-
-
-#### Tunnel chaining with same match - two tunnels chaining
-
-Let's look on the following case
-
-<u>IPSec Tunnel Mode:</u>
-
-```
-Source IP: 10.0.0.0/24
-Destination IP: 11.1.1.0/24 
-Transport Mode
-Priority: 10
-```
-
-<u>GRE Tunnel:</u>
-
-```
-Source IP: 10.0.0.2/24
-Destination IP: 11.1.1.1/24
-GRE Local Ip: 8.8.8.8
-GRE Destination Ip: 9.9.9.9
-Priority: 5
-```
-
-In this case we're having a dillema which traffic will match, the highest prioity (IPSec) is the one that will be offloaded - but since the IPSec isn't changing the ip (Transport Mode), the GRE will be matched as well
-
-![Matching](images/two_tunnels_same_subnet_match.png)
 
 
 
@@ -203,8 +228,11 @@ message CapabilityResponse {
 
 ## Open Points
 
-- What will happen in a case where two tunnels will be downloaded with the same match and with the same priority?
 - What will happen in a case interface will be deleted / vrf will be deleted?
 - What will happen if some tunnel will be downloaded with unsupported capabilities?
 - Should be define error number / error strings in order to "tell" what's the error occured?
 
+- Should be enable meaching with UDP / TCP ports?
+- Action of keeping cycling the packet / just forward it 
+
+- Matching general VXLAN / IPsec / etc packets, w/o any fields
