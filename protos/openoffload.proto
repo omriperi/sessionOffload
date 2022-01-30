@@ -212,7 +212,7 @@ enum ACTION {
   // In this action packet will be forwarded right away
   FORWARD = 0;
   // In this action packet will continue processing, to other tunnel
-  PROCESS = 1;
+  RECIRCULATE = 1;
 }
 
 
@@ -246,11 +246,16 @@ message MatchCriteria {
       MacPair mac_match = 1;
    }
 
+   message GRE {
+     uint32 key = 0;
+   }
+
     // Tunnel Matching
     oneof tunnel {
       IPSecMatch ipsecMatch = 5;
       GeneveMatch geneveMatch = 6;
       VXLanMatch vxlanMatch = 7;
+      GRE greMatch = 8;
     }
 
 }
@@ -259,8 +264,8 @@ message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE
 
   MatchCriteria match_criteria = 1; // When hitting this match, 
 
-  Action action = 2; // What we'll do after matching the packet, shuold we 
-                     // keep process it or we'll just forward it 
+  Action nextAction = 2; // What we'll do after matching the packet, shuold we 
+                         // keep process it or we'll just forward it 
 
   oneof tunnel { 
       IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 

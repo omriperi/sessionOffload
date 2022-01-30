@@ -2,23 +2,25 @@
 
 -------- DRAFT -----------
 
-With openOffload it will be possible to offload also IP Tunnels into the underlying hardware.
+With openOffload it will be possible to also offload IP Tunnels into the underlying hardware.
 
 A service called `ipTunnelTable` will be introduced, for CRUD operations on the offloaded sessions.
 
 Through this service it will be possible to offload several kinds of IP Tunnels, where the common configuation between them is the `match` criteria, which indicates which packets will be matched and go to a tunnel.
 
+The API will also allow definition of switching between tunnels with decapsulating and encapsulating appropriate to the tunnel type for the incoming and outgoing traffic.
+
 ## Packet Tunneling 
 
-With openOffload, user can request to match packet encapsulate it on a tunnel, this will be done by providing matching criteria + tunnel properties.
+With openOffload, user can request to match packet encapsulate it on a tunnel, this will be done by providing matching criteria, tunnel properties and the next action to perform.
 
 ```
 message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
 
   MatchCriteria match_criteria = 1; // When hitting this match, 
 
-  Action action = 2; // What we'll do after matching the packet, shuold we 
-                     // keep process it or we'll just forward it 
+  Action nextAction = 2; // What we'll do after matching the packet, should we 
+                     		 // process it further or just forward it 
   oneof tunnel { 
       IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
   };
@@ -26,7 +28,15 @@ message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE
 }
 ```
 
-*1. ipTunnel message is part of the ip tunneling service*
+When a packet will be sent to the device, the offloaded device will try to match it with tunnels found in table
+
+![Matching](images/tunnelOffload/deviceDiagram.png)
+
+In a case of no match, or a match with `nextAction = FORWARD` the packet will be forwarded from the device.
+
+In a case of a match with `nextAction = RECIRCULATE` the packet will go again to tunnel offload logic.
+
+This iterative process will happen until a packet will not be matched or `nextAction = FORWARD`.
 
 #### Packet Matching
 
@@ -37,13 +47,13 @@ Matching of packet can be based on several criteria:
 - VRF
 - Encapsulating Protocol (e.g. VXLan, IPSec, etc)
 
-Matching of the packet is **exact**, meaning that in order to packet to be tunneled, it should be exactly matched. 
+Matching of the packet is **exact**, meaning that in order to packet to be processed, it should be exactly matched. 
 
-For example, if the following message will be entered to the device:
+For example, if the following message is sent to the device:
 
 ![Matching](images/tunnelOffload/vxlanPacket.png)
 
-If a tunnel will be offloaded with following match criteria:
+If th table only contains the following match criteria:
 
 ```
 Match:
@@ -51,7 +61,9 @@ Source Subnet: 1.2.3.0/24
 Destiantion Subnet: 5.5.5.0/24
 ```
 
-The packet will **not be matched**, since the matching criteria is not including the packet VNI.
+The packet will **not be matched**, since the matching criteria is not including the packet VNI. 
+
+Packet will be processed as any other unmatched packet sent to the device. 
 
 Buf if the match criteria will be this one:
 
@@ -72,7 +84,7 @@ The tunnels are Layer-3 tunnels, and currently only includes IPSec Offloading.
 
 #### Example - Offloading IPsec Tunnel
 
-In the following example, IPSec tunnel is offloaded into the device. 
+In the following example, IPSec tunnel processing is offloaded into the device. 
 
 IPSec is a special example where two offloads should be performed to the device, one for egress and one for ingress - since there's different SA (Security Association) per direction.
 
@@ -90,9 +102,9 @@ For egress flow, the following example can is offloaded into the device
 
 #### Matching on tunnel parameters
 
-While tunnel is terminated, the match will be based on **both** the "Match Criteria" and the "Tunnel Parameters".
+While tunnel is terminated, the processing will be based on **both** the "Match Criteria" and the "Tunnel Parameters".
 
-For example, while offloading GRE with these attributes:
+For example, while offloading IPSec with these attributes:
 
 ```
 Match:
@@ -108,7 +120,7 @@ Remote IP: 6.6.6.6
 
 ```
 
-Since this IPSec tunnel is decrypting the packet, and get the packet already encapsulated, the offload device shuold match on the outer IP.
+Since this IPSec tunnel is decrypting the packet, and get the packet is already encapsulated, the offload device should match on the outer IP.
 
 In this case, the device will match on outer IP source is "6.6.6.6", and destination is "7.7.7.7".
 
@@ -118,13 +130,11 @@ Also, the offloaded device will check that the internal IP's (after decryption) 
 
 ### Tunnel Chaining
 
-This section will provide information regards tunenl chaining, or "IP in IP". Where packet should be encapsulated / decapsulated from several tunnels.
+This section will provide information regards tunnel chaining, or "IP in IP". Where packet should be encapsulated / decapsulated from several tunnels.
 
 In general, tunnel chaining is available since the packet match is exact.
 
-After the first match of packet (that will yield to encapsulation), a lookup on packet will be happen again (with the new header introduced to it) - that can cause tunnel chaining.
-
-Assuming severeal tunnels offloaded, 
+After the first match of packet, a lookup on packet will be happen again- that can cause tunnel chaining.
 
 Refer to this example:
 
@@ -141,6 +151,9 @@ IPSec Transport Mode
 SPI: 0x10203040
 Type: Encryption
 
+Next Action:
+Recirculate
+
 
 ```
 
@@ -156,6 +169,10 @@ Action:
 IPSec Transport Mode
 SPI: 0x40302010
 Type: Decryption
+
+Next Action:
+Forward
+
 ```
 
 ```
@@ -171,6 +188,9 @@ Action:
 GRE Local Ip: 8.8.8.8
 GRE Destination Ip: 9.9.9.9
 GRE Key: 100
+
+Next Action:
+Recirculate
 ```
 
 Note that IPSec is having two tunnels for covering both tunnel creation & termination, while GRE is having only one.
@@ -179,15 +199,17 @@ This is because of the nature of IPSec SA's, which each SA have only one functio
 
 
 
+**Tunnel Termination Chaining**
+
+![Matching](images/tunnelOffload/tunnel_chaining_termination.png)
+
+
+
 **Tunnel Creation Chaining**
 
 ![Matching](images/tunnelOffload/tunnel_chaining_creation.png)
 
 
-
-**Tunnel Termination Chaining**
-
-![Matching](images/tunnelOffload/tunnel_chaining_termination.png)
 
 *Note that with this kind of selection, choosing between GRE-over-IPSec / IPSec-over-GRE is easy available*
 
