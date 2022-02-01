@@ -88,13 +88,13 @@ In the following example, IPSec tunnel processing is offloaded into the device.
 
 IPSec is a special example where two offloads should be performed to the device, one for egress and one for ingress - since there's different SA (Security Association) per direction.
 
-**Tunnel Creation**
+**Ingress Tunnel**
 
 For egress flow, the following example can is offloaded into the device
 
 ![Matching](images/tunnelOffload/ipsec_transport_egress.png)
 
-**Tunnel Termination**
+**Egress Tunnel**
 
 For egress flow, the following example can is offloaded into the device
 
@@ -111,8 +111,8 @@ Match:
 Source Subnet: 10.0.0.0/24
 Destination Subnet: 11.1.1.0/24
 
-Action:
-IPSec Tunne Mode
+Tunnel:
+IPSec Tunnel Mode
 SPI: 0x10101010
 Type: Decryption
 Local IP: 7.7.7.7
@@ -146,7 +146,7 @@ Match:
 Source Subnet: 10.0.0.0/24
 Destination Subnet: 11.1.1.0/24
 
-Action:
+Tunnel:
 IPSec Transport Mode
 SPI: 0x10203040
 Type: Encryption
@@ -165,7 +165,7 @@ Match:
 Source Subnet: 11.1.1.0/24
 Destination Subnet: 10.0.0.0/24
 
-Action:
+Tunnel:
 IPSec Transport Mode
 SPI: 0x40302010
 Type: Decryption
@@ -184,7 +184,7 @@ Source Subnet: 10.0.0.0/24
 Destination Subne: 11.1.1.0/24
 IPsec Packet
 
-Action:
+Tunnel:
 GRE Local Ip: 8.8.8.8
 GRE Destination Ip: 9.9.9.9
 GRE Key: 100
@@ -193,19 +193,19 @@ Next Action:
 Recirculate
 ```
 
-Note that IPSec is having two tunnels for covering both tunnel creation & termination, while GRE is having only one.
+Note that IPSec is having two tunnels for covering both ingress & egress, while GRE is having only one.
 
 This is because of the nature of IPSec SA's, which each SA have only one functionality (encryption / decryption).
 
 
 
-**Tunnel Termination Chaining**
+**Egress Tunnel Chaining**
 
 ![Matching](images/tunnelOffload/tunnel_chaining_termination.png)
 
 
 
-**Tunnel Creation Chaining**
+**Ingress Tunnel Chaining**
 
 ![Matching](images/tunnelOffload/tunnel_chaining_creation.png)
 
