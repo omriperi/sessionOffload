@@ -231,6 +231,8 @@ message MatchCriteria {
     }
 
     string vrf = 4;
+
+    tunnelId tunnelID = 5;
     
     message IPSecMatch {
       uint32 spi = 0;
@@ -252,10 +254,10 @@ message MatchCriteria {
 
     // Tunnel Matching
     oneof tunnel {
-      IPSecMatch ipsecMatch = 5;
-      GeneveMatch geneveMatch = 6;
-      VXLanMatch vxlanMatch = 7;
-      GRE greMatch = 8;
+      IPSecMatch ipsecMatch = 6;
+      GeneveMatch geneveMatch = 7;
+      VXLanMatch vxlanMatch = 8;
+      GRE greMatch = 9;
     }
 
 }
