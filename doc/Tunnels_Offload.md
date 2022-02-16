@@ -111,7 +111,7 @@ Match:
 Source Subnet: 10.0.0.0/24
 Destination Subnet: 11.1.1.0/24
 
-Tunnel:
+Action:
 IPSec Tunnel Mode
 SPI: 0x10101010
 Type: Decryption
@@ -253,8 +253,5 @@ message CapabilityResponse {
 - What will happen in a case interface will be deleted / vrf will be deleted?
 - What will happen if some tunnel will be downloaded with unsupported capabilities?
 - Should be define error number / error strings in order to "tell" what's the error occured?
-
-- Should be enable meaching with UDP / TCP ports?
-- Action of keeping cycling the packet / just forward it 
 
 - Matching general VXLAN / IPsec / etc packets, w/o any fields
