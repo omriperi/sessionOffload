@@ -194,6 +194,7 @@ message CapabilityResponse {
     bool vxlanMatching = 2; // Match with VXLAN VNI
     bool geneveMatching = 3; // Match with geneve can happen
     bool vrfMatching = 4; // Is vrf matching possible
+    bool tunnelMatching = 5;
   }
 
   MatchCapabilities matchCapabilities = 1;
@@ -230,9 +231,10 @@ message MatchCriteria {
       IPV6Match ipv6Match = 3;
     }
 
-    string vrf = 4;
+    string vrf = 4; // Optional field, not indicating VRF means that 
+    // the match will be on default VRF 
 
-    tunnelId tunnelID = 5;
+    tunnelId tunnelID = 5; // Match on specific tunnel
     
     message IPSecMatch {
       uint32 spi = 0;
@@ -248,6 +250,10 @@ message MatchCriteria {
       MacPair mac_match = 1;
    }
 
+   message VCMPBypass {
+
+   }
+
    message GRE {
      uint32 key = 0;
    }
@@ -258,6 +264,7 @@ message MatchCriteria {
       GeneveMatch geneveMatch = 7;
       VXLanMatch vxlanMatch = 8;
       GRE greMatch = 9;
+      VCMPBypass vcmpBypass = 10;
     }
 
 }
@@ -271,8 +278,55 @@ message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE
 
   oneof tunnel { 
       IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
+      GENEVEEncap geneveEncap = 4;
+      GENEVEDecap geneveDecap = 5;
+      VCMPNat NAT = 4;
   };
 
+}
+
+message GENEVEOption {
+  uint16 optionClass = 1;
+  uint8 type = 2;
+  uint8 length = 3; // Only 5 bits used
+  // Length is multiple of 4 bit (see https://datatracker.ietf.org/doc/html/rfc8926#section-3.5)
+  bytes data = 4; // Only 4-128 bytes are acceptable
+}
+
+message GENEVEEncap {
+  /*
+  Defining the GENEVE Header at encpasulation
+  Fields names are identical to the fields as described in the RFC:
+  https://datatracker.ietf.org/doc/html/rfc8926
+  For details of each fields, please refer to the RFC
+
+  Notes:
+  - Version field is not present since always 0
+  */  
+
+  // IP's that will be in the outer IP of encapsulated packet
+  oneof ip {
+    IPV4Pair outerIpv4Pair = 1;
+    IPV6Pair outerIpv6Pair = 2;
+  }
+
+  // Source & Dest mac of inner GENEVE packet 
+  MacPair innerMacPair = 3;
+
+  uint8 optionLength = 1; // 6 bits 
+  bool controlPacket = 2; // O bit at rfc. True is '1', False is '0'. Default is False.
+  bool criticalOptionPresent = 3; // C bit at rfc. True is '1', False is '0'. Default is False.
+  uint32 vni = 4; // Virtual Network Identifier - 24 bits
+  repeated GENEVEOption = 5;
+}
+
+message GENEVEDecap {
+  // GENEVEDecap can only be used if GENEVE 
+  // is on the match of the tunnel
+}
+
+message NATAction {
+  fixed32 sourceIp = 1;
 }
 
 message MacPair {
