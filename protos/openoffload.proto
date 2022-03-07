@@ -26,7 +26,7 @@ option go_package = ".;openoffload_v1beta1";
 
 import "google/protobuf/timestamp.proto";
 
-enum IP_VERSION{
+enum IP_VERSION {
    _IPV4 = 0;
    _IPV6 = 1;
 }
@@ -79,12 +79,12 @@ enum SESSION_CLOSE_CODE {
 // _SESSION_ALREADY_EXISTS: Session is rejected by the the server as it already exists 
 //    in the server session table, the client will take corrective action to ensure state is consistent.
 //
-enum ADD_SESSION_STATUS{
+enum ADD_SESSION_STATUS {
   _SESSION_ACCEPTED = 0;
   _SESSION_REJECTED = 1;
   _SESSION_TABLE_FULL = 2;
-  _SESSION_TABLE_UNAVAILABLE =3;
-  _SESSION_ALREADY_EXISTS=4;
+  _SESSION_TABLE_UNAVAILABLE = 3;
+  _SESSION_ALREADY_EXISTS= 4;
 }
 //
 // REQUEST_STATUS Codes Description
@@ -100,17 +100,17 @@ enum ADD_SESSION_STATUS{
 // _REJECTED_INTERNAL_ERROR: The server has an internal error and cannot serivce the request.
 //    The client must log the error and optionally retry or skip the request.
 //
-enum REQUEST_STATUS{
+enum REQUEST_STATUS {
    _ACCEPTED = 0;
    _REJECTED = 1;
    _REJECTED_SESSION_NONEXISTENT = 2;
-   _REJECTED_SESSION_TABLE_FULL = 3 ;
-   _REJECTED_SESSION_ALREADY_EXISTS = 4 ;
-   _NO_CLOSED_SESSIONS = 5 ;
-   _REJECTED_INTERNAL_ERROR =6;
+   _REJECTED_SESSION_TABLE_FULL = 3;
+   _REJECTED_SESSION_ALREADY_EXISTS = 4;
+   _NO_CLOSED_SESSIONS = 5;
+   _REJECTED_INTERNAL_ERROR = 6;
 }
 
-enum ACTION_TYPE{
+enum ACTION_TYPE {
    _DROP = 0;
    _FORWARD = 1;
    _MIRROR = 2;
@@ -176,12 +176,12 @@ message CapabilityRequest {
 
 
 
-enum ENC_TYPE{
+enum ENC_TYPE {
   _AES = 0;
   _DES = 1;
 }
 
-enum AUTH_TYPE{
+enum AUTH_TYPE {
   _SHA256 = 0;
 }
 
@@ -217,7 +217,7 @@ enum ACTION {
 }
 
 
-enum DIRECTION{
+enum DIRECTION {
   _IN = 0; // Ingress Packets
   _OUT = 1; // Egress Packets
 }
@@ -237,17 +237,17 @@ message MatchCriteria {
     tunnelId tunnelID = 5; // Match on specific tunnel
     
     message IPSecMatch {
-      uint32 spi = 0;
+      uint32 spi = 1;
     } 
     
     message GeneveMatch {
-      uint32 vni = 0;
-      MacPair macMatch = 1;
+      uint32 vni = 1;
+      MacPair macMatch = 2;
    }
    
    message VXLanMatch {
-      uint32 vni = 0;
-      MacPair mac_match = 1;
+      uint32 vni = 1;
+      MacPair mac_match = 2;
    }
 
    message VCMPBypass {
@@ -255,11 +255,11 @@ message MatchCriteria {
    }
 
    message GRE {
-     uint32 key = 0;
+     uint32 key = 1;
    }
 
     // Tunnel Matching
-    oneof tunnel {
+    oneof match {
       IPSecMatch ipsecMatch = 6;
       GeneveMatch geneveMatch = 7;
       VXLanMatch vxlanMatch = 8;
@@ -269,26 +269,30 @@ message MatchCriteria {
 
 }
 
+message VCMPNat {
+
+}
+
 message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
 
   MatchCriteria match_criteria = 1; // When hitting this match, 
 
-  Action nextAction = 2; // What we'll do after matching the packet, shuold we 
+  ACTION nextAction = 2; // What we'll do after matching the packet, shuold we 
                          // keep process it or we'll just forward it 
 
   oneof tunnel { 
       IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
       GENEVEEncap geneveEncap = 4;
       GENEVEDecap geneveDecap = 5;
-      VCMPNat NAT = 4;
+      VCMPNat NAT = 6;
   };
 
 }
 
 message GENEVEOption {
-  uint16 optionClass = 1;
-  uint8 type = 2;
-  uint8 length = 3; // Only 5 bits used
+  uint32 optionClass = 1;
+  uint32 type = 2;
+  uint32 length = 3; // Only 5 bits used
   // Length is multiple of 4 bit (see https://datatracker.ietf.org/doc/html/rfc8926#section-3.5)
   bytes data = 4; // Only 4-128 bytes are acceptable
 }
@@ -313,11 +317,11 @@ message GENEVEEncap {
   // Source & Dest mac of inner GENEVE packet 
   MacPair innerMacPair = 3;
 
-  uint8 optionLength = 1; // 6 bits 
-  bool controlPacket = 2; // O bit at rfc. True is '1', False is '0'. Default is False.
-  bool criticalOptionPresent = 3; // C bit at rfc. True is '1', False is '0'. Default is False.
-  uint32 vni = 4; // Virtual Network Identifier - 24 bits
-  repeated GENEVEOption = 5;
+  uint32 optionLength = 4; // 6 bits 
+  bool controlPacket = 5; // O bit at rfc. True is '1', False is '0'. Default is False.
+  bool criticalOptionPresent = 6; // C bit at rfc. True is '1', False is '0'. Default is False.
+  uint32 vni = 7; // Virtual Network Identifier - 24 bits
+  repeated GENEVEOption geneveOption = 8;
 }
 
 message GENEVEDecap {
@@ -391,11 +395,11 @@ message IPSecTunnel {
 // should the Application assign the sessionID on AddSession and avoid conflicts
 // or have the applications have a mechanism to avoid duplicate sessionIDs across 
 // applications since there will be many applications instances to 1 switch
-message sessionId{
+message sessionId {
   uint64 sessionId = 1;
 }
 
-message tunnelId{
+message tunnelId {
   uint64 tunnelId = 1;
 }
 
@@ -404,7 +408,7 @@ message tunnelId{
 // DROP and FORWARD do not have an actionNextHop
 // The IPV4 nextHop definition maps to the V4 struct returned by inet_pton whcih is a uint32_t.
 // The IPV6 nextHop definition maps to the V6 struct returned by inet_ptoN which is a uint8_t s6_addr[16]
-message actionParameters{
+message actionParameters {
      ACTION_TYPE  actionType = 1;
      uint32 actionNextHop = 2;
      bytes actionNextHopV6 = 3;
@@ -413,16 +417,16 @@ message actionParameters{
 // sessionId is returned by server side upon successful addSession
 // The IPV4 definition maps to the V4 struct returned by inet_pton whcih is a uint32_t.
 // The IPV6 definition maps to the V6 struct returned by inet_ptoN which is a uint8_t s6_addr[16]
-message sessionRequest{
-  uint64  sessionId = 1 ;
+message sessionRequest {
+  uint64  sessionId = 1;
   int32  inLif = 2;
   int32  outLif = 3;
   IP_VERSION ipVersion = 4;
   uint32 sourceIp = 5;
-  bytes sourceIpV6 =6;
+  bytes sourceIpV6 = 6;
   uint32 sourcePort = 7;
   uint32 destinationIp = 8;
-  bytes destinationIpV6 =9;
+  bytes destinationIpV6 = 9;
   uint32 destinationPort = 10;
   PROTOCOL_ID protocolId = 11;
   actionParameters action = 12;
@@ -437,7 +441,7 @@ message sessionResponseError {
 
 message sessionResponses {
   repeated sessionResponse sessionInfo = 1;
-  uint64 nextkey =2;
+  uint64 nextkey = 2;
 }
 
 
@@ -445,9 +449,9 @@ message sessionResponses {
 // In v1apha4 the errorstatus was added to act as a bitmask
 // of errors for each of the sesssions sent in a stream (max 64).
 //
-message addSessionResponse{
+message addSessionResponse {
   ADD_SESSION_STATUS requestStatus = 1;
-  uint64 errorStatus = 2 ;
+  uint64 errorStatus = 2;
   google.protobuf.Timestamp startTime = 3;
   repeated sessionResponseError responseError = 4;
 }
@@ -488,14 +492,14 @@ message ipTunnelResponse {
 
 }
 
-message sessionResponse{
-  uint64  tunnelId = 1 ;
-  uint64  inPackets = 2 ;
-  uint64  outPackets = 3 ;
-  uint64  inBytes  = 4 ;
+message sessionResponse {
+  uint64  tunnelId = 1;
+  uint64  inPackets = 2;
+  uint64  outPackets = 3;
+  uint64  inBytes  = 4;
   uint64  outBytes = 5;
-  SESSION_STATE sessionState = 6 ;
-  SESSION_CLOSE_CODE sessionCloseCode = 7 ;
+  SESSION_STATE sessionState = 6;
+  SESSION_CLOSE_CODE sessionCloseCode = 7;
   REQUEST_STATUS requestStatus = 8;
   google.protobuf.Timestamp startTime = 9;
   google.protobuf.Timestamp endTime = 10;
@@ -503,12 +507,12 @@ message sessionResponse{
 
 
 
-message sessionRequestArgs{
+message sessionRequestArgs {
   //  pageSize = 0 will turn off paging
   //  does paging make sense for a stream ?
   //  the client should read/process each event on the stream anyway.
-  uint32  pageSize=1;
-  uint32  page=2;
-  uint64  startSession=3;
+  uint32  pageSize= 1;
+  uint32  page= 2;
+  uint64  startSession= 3;
   //  what other arguments make sense for retrieving or filtering streams 
 }

@@ -6,212 +6,201 @@ With openOffload it will be possible to also offload IP Tunnels into the underly
 
 A service called `ipTunnelTable` will be introduced, for CRUD operations on the offloaded sessions.
 
-Through this service it will be possible to offload several kinds of IP Tunnels, where the common configuation between them is the `match` criteria, which indicates which packets will be matched and go to a tunnel.
+Through this service, it will be possible to offload several kinds of IP Tunnels, where the common configuration between them is the `match` criteria, which indicates which packets will be matched and go to a tunnel.
 
-The API will also allow definition of switching between tunnels with decapsulating and encapsulating appropriate to the tunnel type for the incoming and outgoing traffic.
+The API will also allow the definition of switching between tunnels with decapsulating and encapsulating appropriate to the tunnel type for the incoming and outgoing traffic.
 
-## Packet Tunneling 
 
-With openOffload, user can request to match packet encapsulate it on a tunnel, this will be done by providing matching criteria, tunnel properties and the next action to perform.
+
+# Offloading Rules
+
+With openOffload, the user can request to match the packet encapsulate it on a tunnel, this will be done by providing matching criteria, tunnel properties and the next action to perform.
 
 ```
-message ipTunnel { // Can be   GRE / NVGRE / IPSec (SPI) / mGRE 
+message ipTunnelRule { 
 
   MatchCriteria match_criteria = 1; // When hitting this match, 
 
-  Action nextAction = 2; // What we'll do after matching the packet, should we 
-                     		 // process it further or just forward it 
+  ACTION nextAction = 2; // What we'll do after matching the packet, shuold we 
+                         // keep process it or we'll just forward it 
+
   oneof tunnel { 
-      IPSecTunnel ipsecTunnel = 3;  // Tunnel that will be used for encapsulation, can be both 
+      IPSecTunnel ipsecTunnel = 3;  
+      GENEVE geneve = 4;
+      VCMPNat NAT = 5;
   };
 
 }
 ```
 
-When a packet will be sent to the device, the offloaded device will try to match it with tunnels found in table
+Each ipTunnelRule inserted will include *match* determines rule matching. Upon match tunnel provided by the *tunnel* 
+field will be applied to the packet.
+
+`nextActinon` field will determine what will happen to the packet after applying the tunnel, with two possibilities: *recirculate* indicates packet will overgo again the tunneling subsytem, and another tunnel rule may be applied. *forward* indicates that the packet will be forwarded directly from the device, without the  process of any other tunnel.
+
+To summarize the flow, see the following diagram:
 
 ![Matching](images/tunnelOffload/deviceDiagram.png)
 
-In a case of no match, or a match with `nextAction = FORWARD` the packet will be forwarded from the device.
+#### Tunnel ID
 
-In a case of a match with `nextAction = RECIRCULATE` the packet will go again to tunnel offload logic.
+As a response to `ipTunnelRule` creation, the offloading device will send back a unique 32-bit identifier to the tunnel - **tunnelId**.
 
-This iterative process will happen until a packet will not be matched or `nextAction = FORWARD`.
+The tunnelId will be used for any tunnel action: getting tunnel operational data / deleting tunnel / etc
 
-#### Packet Matching
+## Packet Matching
 
-Matching of packet can be based on several criteria:
+Matching of the packet can be based on several matching criteria, interface, IP, VRF, etc.
 
-- Ingress Interface
-- IP's
-- VRF
-- Encapsulating Protocol (e.g. VXLan, IPSec, etc)
+The matching criteria are comprised of three parts:
 
-Matching of the packet is **exact**, meaning that in order to packet to be processed, it should be exactly matched. 
+1. IP packet fields  - MAC, IP's, etc
+2. Specific header matching: GENVE / VXLan / IPSec, etc.
+3. Tunnel Matching: Matching packets according to their *last* match. More information on it in *Tunnel Chaining* section.
 
-For example, if the following message is sent to the device:
+```
+message MatchCriteria {
+    // In case it's not present, untagged traffic will be matched
+    string ingress_interface = 1; // Optional field, in which interface this tunnel will be encapsulated
+
+    MacPair macMatch = 2; // MAC of the packet itself
+
+    oneof ip_match {
+      IPV4Match ipv4Match = 3;
+      IPV6Match ipv6Match = 4;
+    }
+
+    string vrf = 5; // Optional field, not indicating VRF means that 
+    // the match will be on default VRF 
+
+    tunnelId tunnelID = 6; // Match on specific tunnel
+    
+    // Tunnel Matching
+    oneof match {
+      IPSecMatch ipsecMatch = 7;
+      GeneveMatch geneveMatch = 8;
+      VXLanMatch vxlanMatch = 9;
+      GRE greMatch = 10;
+    }
+
+}
+```
+
+This matching structure is intended to provide maximum flexibility to the user, that, for example - can match on specific VXLan VNI & Inner Mac, and only then perform IPSec encryption (or any other action).
+
+Field absence will count as wildcard matching. Fields not containing any values will be matched on any value received. e.g. Not providing ipv4/ipv6 match, will make the tunnel matched on any IP received by the device.
+
+Let's take a look at the following packet:
 
 ![Matching](images/tunnelOffload/vxlanPacket.png)
 
-If th table only contains the following match criteria:
+*All of the matches below will match this packet:*
 
 ```
-Match:
-Source Subnet: 1.2.3.0/24
-Destiantion Subnet: 5.5.5.0/24
+Source IP: 1.2.3.0/24
+VXLAN Packet {
+   VNI: 466
+}
 ```
 
-The packet will **not be matched**, since the matching criteria is not including the packet VNI. 
-
-Packet will be processed as any other unmatched packet sent to the device. 
-
-Buf if the match criteria will be this one:
+*Source IP & VNI Match, Destination IP is not provided - matching on any destination IP*
 
 ```
-Match:
-Source Subnet: 1.2.3.0/24
-Destiantion Subnet: 5.5.5.0/24
-VXLAN VNI: 466
+VXLAN Packet {
+}
 ```
 
-The packet **will be matched**, since matching criteira indicating that the packet is VXLan packet, with specific VNI (466) that's matched in the packet
+*Just specifying that packet is VXLan packet is enough, done by matching VXLan without any field in message*
 
-#### Packet Encapsulation / Decapsulation
+```
+Source IP: 1.2.3.0/24
+Destination IP: 5.5.5.0/24
+VXLAN Packet {
+   Source MAC: 0x102030405060
+}
+```
+
+*Source & Dest outer IP match, inner source MAC match*
+
+## Packet Encapsulation / Decapsulation
 
 After packet matched, it should be encapsulated / decapsulated according to the offloaded tunnel.
 
-The tunnels are Layer-3 tunnels, and currently only includes IPSec Offloading.
+Tunnel configuration can be unidirectional or bidirectional, depending on the tunnel characteristics.
 
-#### Example - Offloading IPsec Tunnel
-
-In the following example, IPSec tunnel processing is offloaded into the device. 
-
-IPSec is a special example where two offloads should be performed to the device, one for egress and one for ingress - since there's different SA (Security Association) per direction.
-
-**Ingress Tunnel**
-
-For egress flow, the following example can is offloaded into the device
-
-![Matching](images/tunnelOffload/ipsec_transport_egress.png)
-
-**Egress Tunnel**
-
-For egress flow, the following example can is offloaded into the device
-
-![Matching](images/tunnelOffload/ipsec_transport_ingress.png)
-
-#### Matching on tunnel parameters
-
-While tunnel is terminated, the processing will be based on **both** the "Match Criteria" and the "Tunnel Parameters".
-
-For example, while offloading IPSec with these attributes:
+This is the tunnel part in the ipTunnelRule:
 
 ```
-Match:
-Source Subnet: 10.0.0.0/24
-Destination Subnet: 11.1.1.0/24
-
-Action:
-IPSec Tunnel Mode
-SPI: 0x10101010
-Type: Decryption
-Local IP: 7.7.7.7
-Remote IP: 6.6.6.6
-
+  oneof tunnel { 
+      IPSecTunnel ipsecTunnel = 3; 
+      GENEVE geneve = 4;
+      VCMPNat NAT = 5;
+  };
 ```
 
-Since this IPSec tunnel is decrypting the packet, and get the packet is already encapsulated, the offload device should match on the outer IP.
+Each tunnel type is introduced by message.  
 
-In this case, the device will match on outer IP source is "6.6.6.6", and destination is "7.7.7.7".
+In case of bi-directional tunnel, the tunnel encapsulation will determine the match on the reverse side (e.g. NAT).
 
-Also, the offloaded device will check that the internal IP's (after decryption) are matching the match on the packet. 
+In case of uni-directional tunnel, tunnel definition will be for only ecnapsulation / decapsulatio nof tunnel.
 
-![Matching](images/tunnelOffload/ipsec_tunnel_mode.png)
+GENEVE is a classic example of bi-directional user - where the offloaded device can device to just encapsulate / decapsulate geneve.
+
+```
+message GENEVE {
+  oneof {
+    GENEVEEncap geneveEncap = 1;
+    GENEVEDecap geneveDecap = 2;
+  }
+```
+
+*Upon a match, user decide to perform encapsulation / decapsulation, GENEVE is comprised of two distinct messages, 
+choosing one of them decide about the tunnel operation*
+
+NAT is an example where the device is both encapsulating / decapsulating the tunnels.
+
+```
+message NAT {
+  SourceIP sourceIP = 1;
+}
+```
+
+*In NAT example, ipTunnelRule will be used for both encapsulation / decapsulation*
+
+![Matching](images/tunnelOffload/uni_bi_directional_tunnel.png)
+
+
+
+**Match** is the only indicator for going into tunnel encapsulation / decapsulation.
+While wanting to perform decapsulation of packet in uni-directional tunnel (e.g. the GENEVE Decapsulation in the example above), a GENEVE match **MUST** be on MATCH criteria (the same applies for IPSec, VXLan, etc)
 
 ### Tunnel Chaining
 
-This section will provide information regards tunnel chaining, or "IP in IP". Where packet should be encapsulated / decapsulated from several tunnels.
+Tunnel chaining is possible with tunnelOffload, making a packet overgo several tunnels encapsulation / decapsulations.
 
-In general, tunnel chaining is available since the packet match is exact.
+According to the following chart:
 
-After the first match of packet, a lookup on packet will be happen again- that can cause tunnel chaining.
+![Matching](images/tunnelOffload/deviceDiagram.png)
 
-Refer to this example:
+Upon receipt of packet into the offloading device, it will be matched and tunnel will be applied. 
 
-```
-----
-Tunnel ID 1:
-----
-Match:
-Source Subnet: 10.0.0.0/24
-Destination Subnet: 11.1.1.0/24
+If the `nextAction` equals to `RECIRCULATE`, the packet will be process via the matching logic again, and if match will be found - another tunnel will be appliwed ot hte packet.
 
-Tunnel:
-IPSec Transport Mode
-SPI: 0x10203040
-Type: Encryption
+This iterative process will occur until: one; packet isn't matched via the matching logic. 2; the next action equals to `FORWARD`. That will yield to immediate forwarding of the data. 
 
-Next Action:
-Recirculate
+Consider the following example:
 
+![Matching](images/tunnelOffload/tunnel_chain_ip.png)
 
-```
+While first match of packet **MUST** be based on IP's, there's a possibility to use "TunnelID" as the match critieria.
 
-```
-----
-Tunnel ID 2:
-----
-Match:
-Source Subnet: 11.1.1.0/24
-Destination Subnet: 10.0.0.0/24
+Rules having "TunnelID" in their match criteria can only be part of tunnel chaining, and will applied on packet from the second tunnel and afterwards.
 
-Tunnel:
-IPSec Transport Mode
-SPI: 0x40302010
-Type: Decryption
+Consider the following example:
 
-Next Action:
-Forward
+![Matching](images/tunnelOffload/tunnel_chain_tunnel_id.png)
 
-```
-
-```
----
-Tunnel ID 3:
----
-Match:
-Source Subnet: 10.0.0.0/24
-Destination Subne: 11.1.1.0/24
-IPsec Packet
-
-Tunnel:
-GRE Local Ip: 8.8.8.8
-GRE Destination Ip: 9.9.9.9
-GRE Key: 100
-
-Next Action:
-Recirculate
-```
-
-Note that IPSec is having two tunnels for covering both ingress & egress, while GRE is having only one.
-
-This is because of the nature of IPSec SA's, which each SA have only one functionality (encryption / decryption).
-
-
-
-**Egress Tunnel Chaining**
-
-![Matching](images/tunnelOffload/tunnel_chaining_termination.png)
-
-
-
-**Ingress Tunnel Chaining**
-
-![Matching](images/tunnelOffload/tunnel_chaining_creation.png)
-
-
-
-*Note that with this kind of selection, choosing between GRE-over-IPSec / IPSec-over-GRE is easy available*
+The advantage of using the "TunnelID" as a match, is the ability to know for sure that after some tunneling, the second will happen for sure.
 
 
 
@@ -248,10 +237,23 @@ message CapabilityResponse {
 
 
 
-## Open Points
+## Examples
 
-- What will happen in a case interface will be deleted / vrf will be deleted?
-- What will happen if some tunnel will be downloaded with unsupported capabilities?
-- Should be define error number / error strings in order to "tell" what's the error occured?
+#### Offloading IPsec Tunnel
 
-- Matching general VXLAN / IPsec / etc packets, w/o any fields
+In the following example, IPSec tunnel processing is offloaded into the device. 
+
+IPSec is a special example where two offloads should be performed to the device, one for egress and one for ingress - since there's different SA (Security Association) per direction.
+
+**Ingress Tunnel**
+
+For egress flow, the following example can is offloaded into the device
+
+![Matching](images/tunnelOffload/examples/ipsec_transport_egress.png)
+
+**Egress Tunnel**
+
+For egress flow, the following example can is offloaded into the device
+
+![Matching](images/tunnelOffload/examples/ipsec_transport_ingress.png)
+
